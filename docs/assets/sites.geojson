@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[-76.285,36.85]},"properties":{"name":"Norfolk"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[-85.575,30.069]},"properties":{"name":"Tyndall AFB"}},{"type":"Feature","geometry":{"type":"Point","coordinates":[167.317,9.396]},"properties":{"name":"Roi Namur"}}]}

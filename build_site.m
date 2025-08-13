@@ -5,8 +5,8 @@ function build_site()
 clc; close all;
 outDir  = fullfile(pwd,'docs');
 assets  = fullfile(outDir,'assets');
-if ~exist(outDir,'dir'), mkdir(outDir); end
-if ~exist(assets,'dir'), mkdir(assets); end
+if ~exist(outDir,'dir'),  mkdir(outDir);  end
+if ~exist(assets,'dir'),  mkdir(assets);  end
 
 % ---------- Site settings ----------
 site.title      = 'Coastal Hazard Modeling';
@@ -29,10 +29,9 @@ site.pages = { ...
 };
 
 % ---------- Logo ----------
-site.logo = 'logo.jpg';                      % set to your real file (logo.jpg/png)
-logoPath  = fullfile(assets, site.logo);
-if ~exist(logoPath,'file')
-    warning('Logo file not found: %s', logoPath);
+site.logo = 'logo.jpg';
+if ~exist(fullfile(assets, site.logo),'file')
+    warning('Logo file not found: assets/%s', site.logo);
 end
 
 % ---------- Shared CSS ----------
@@ -51,15 +50,13 @@ content.models = htmlList({ ...
   mklink('models_overview.html','Overview of Technology/Methodology'), ...
   mklink('models_xbeach.html','XBEACH') ...
 });
-content.guide = htmlList({ ...
-  mklink('guide_xbeach.html','XBEACH USERS GUIDE') ...
-});
-content.sites = htmlList({ ...
-  mklink('site_delaware.html','Delaware Coast') ...
-});
+content.guide = htmlList({ mklink('guide_xbeach.html','XBEACH USERS GUIDE') });
+content.sites = htmlList({ mklink('site_delaware.html','Delaware Coast') });
+
+% NOTE: this page embeds docs/map_embed.html (written by writeLeafletMap)
 content.map = [ ...
   '<p>Interactive map of the latest run.</p>' ...
-  iframe('map_embed.html?v=1') ...   % cache-buster
+  iframe('map_embed.html?v=2') ...
 ];
 
 content.demo        = '<p>Add demo pages for each site with images, GIFs, or short videos.</p>';
@@ -77,17 +74,13 @@ for i = 1:size(site.pages,1)
     writePage(outDir, assets, site, slug, title, body, site.pages);
 end
 
-% ---------- Subpages: Models ----------
+% ---------- Subpages ----------
 writeSimplePage(outDir, assets, site, 'models_overview', ...
     'Overview of Technology/Methodology', '<p>High-level comparison of models and when to use each.</p>', site.pages);
 writeSimplePage(outDir, assets, site, 'models_xbeach', ...
     'XBEACH', '<p>Shortwave/longwave modes, parameters, morphology switches.</p>', site.pages);
-
-% ---------- Subpages: Guides ----------
 writeSimplePage(outDir, assets, site, 'guide_xbeach', ...
     'XBEACH — User Guide', '<p>Parameter tuning, grids, validation.</p>', site.pages);
-
-% ---------- Site pages ----------
 writeSimplePage(outDir, assets, site, 'site_delaware', ...
     'Delaware Coast', '<p>Describe locations, transects, and data sources.</p>', site.pages);
 
@@ -96,8 +89,7 @@ writeLeafletMap(outDir, assets);
 
 fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
 
-% ========== Nested helper functions ==========
-
+% ===== helpers =====
     function writePage(outDir_, assets_, site_, slug, title, body, pages)
         html = sprintf(['<!DOCTYPE html><html lang="en"><head>' ...
           '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' ...
@@ -112,15 +104,10 @@ fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
           '<article class="content"><h1>%s</h1>%s</article></main>' ...
           '<footer class="site-footer">&copy; %d %s</footer>' ...
           '</body></html>'], ...
-          title, site_.title, ...
-          site_.logo, ...
-          site_.logo, site_.title, ...
+          title, site_.title, site_.logo, site_.logo, site_.title, ...
           topNav(pages, slug), sideNav(pages, slug), ...
           title, body, year(datetime('now')), site_.org);
-
-        fid = fopen(fullfile(outDir_, [slug '.html']),'w');
-        fwrite(fid, html);
-        fclose(fid);
+        fid = fopen(fullfile(outDir_, [slug '.html']),'w'); fwrite(fid, html); fclose(fid);
     end
 
     function writeSimplePage(outDir_, assets_, site_, slug, title, paragraph, pages)
@@ -128,25 +115,23 @@ fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
     end
 
     function s = topNav(pages, active)
-        items = cell(1, size(pages,1));
+        items = cell(1,size(pages,1));
         for ii = 1:size(pages,1)
-            slug  = pages{ii,1};
-            label = pages{ii,2};
+            slug  = pages{ii,1}; label = pages{ii,2};
             if strcmp(slug, active), cls = ' class="active"'; else, cls = ''; end
             items{ii} = sprintf('<a%s href="%s.html">%s</a>', cls, slug, label);
         end
-        s = strjoin(items, '');
+        s = strjoin(items,'');
     end
 
     function s = sideNav(pages, active)
-        items = cell(1, size(pages,1));
+        items = cell(1,size(pages,1));
         for ii = 1:size(pages,1)
-            slug  = pages{ii,1};
-            label = pages{ii,2};
+            slug  = pages{ii,1}; label = pages{ii,2};
             if strcmp(slug, active), cls = ' class="active"'; else, cls = ''; end
             items{ii} = sprintf('<div><a%s href="%s.html">%s</a></div>', cls, slug, label);
         end
-        s = strjoin(items, '');
+        s = strjoin(items,'');
     end
 
     function writeCSS(path, themeColor)
@@ -170,62 +155,45 @@ fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
         fid = fopen(path,'w'); fwrite(fid, css); fclose(fid);
     end
 
-    function s = mklink(href, text_)
-        s = ['<a href="', href, '">', text_, '</a>'];
-    end
-
-    function s = htmlList(items)
-        li = cellfun(@(x) ['<li>', x, '</li>'], items, 'UniformOutput', false);
-        s  = ['<ul>', strjoin(li,''), '</ul>'];
-    end
-
+    function s = mklink(href, text_), s = ['<a href="', href, '">', text_, '</a>']; end
+    function s = htmlList(items), s  = ['<ul>', strjoin(cellfun(@(x)['<li>',x,'</li>'],items,'uni',0),''), '</ul>']; end
     function s = iframe(src)
         s = ['<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;height:600px">' ...
              '<iframe src="', src, '" style="width:100%;height:100%;border:0"></iframe></div>'];
     end
 
-    function writeLeafletMap(outDir_, assets_)
-        % Writes docs/map_embed.html
-       
-
-        geoDir = fullfile(outDir_, 'assets', 'geo');
-        if ~exist(geoDir, 'dir'), mkdir(geoDir); end
-
-        lines = {
-'<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
-'<title>Interactive Map</title>'
-'<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">'
-'<style>html,body{margin:0;padding:0;height:100%}#map{height:100vh;margin:0}.leaflet-popup-content{max-width:560px !important}.popupimg{max-width:520px;width:100%;display:block;margin-top:6px;border-radius:6px}</style>'
-'</head><body>'
-'<div id="map"></div>'
-'<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>'
-'<script>'
-'var map=L.map("map").setView([38.9,-75.2],8);'
-'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);'
-'fetch("assets/geo/latest_run.geojson").then(function(r){'
-'  if(!r.ok) throw new Error("latest_run.geojson not found");'
-'  return r.json();'
-'}).then(function(g){'
-'  L.geoJSON(g,{onEachFeature:function(f,l){'
-'    var p=f.properties||{};'
-'    var html="<strong>"+(p.name||"Transect")+"</strong>";'
-'    if(p.image){'
-'      var im=String(p.image);'
-'      html+="<br><a href=\\"" + im + "\\" target=\\"_blank\\" rel=\\"noopener\\"><img class=\\"popupimg\\" src=\\"" + im + "\\"></a>";'
-'      html+="<div style=\\"margin-top:4px\\"><a href=\\"" + im + "\\" target=\\"_blank\\" rel=\\"noopener\\">Open full size</a></div>";'
-'    }'
-'    l.bindPopup(html,{maxWidth:560});'
-'  }}).addTo(map);'
-'}).catch(function(e){'
-'  var m=L.marker([39.1582,-75.5244]).addTo(map);'
-'  m.bindPopup("No GeoJSON yet: "+e.message);'
-'});'
-'</script></body></html>'
-        };
-
-        fid = fopen(fullfile(outDir_,'map_embed.html'),'w');
-        fwrite(fid, strjoin(lines,''));
-        fclose(fid);
+    function writeLeafletMap(outDir_, ~)
+        % Write docs/map_embed.html (complete Leaflet page)
+        html = [ ...
+'<!DOCTYPE html>\n<html>\n<head>\n' ...
+'  <meta charset="utf-8">\n' ...
+'  <meta name="viewport" content="width=device-width, initial-scale=1">\n' ...
+'  <title>Interactive Map</title>\n' ...
+'  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">\n' ...
+'  <style>html,body{height:100%;margin:0;padding:0}#map{height:100vh}.leaflet-popup-content{max-width:560px !important}.popupimg{max-width:520px;width:100%;display:block;margin-top:6px;border-radius:6px}</style>\n' ...
+'</head>\n<body>\n' ...
+'  <div id="map"></div>\n' ...
+'  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>\n' ...
+'  <script>\n' ...
+'    const map=L.map("map").setView([38.9,-75.2],8);\n' ...
+'    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);\n' ...
+'    fetch("assets/geo/latest_run.geojson")\n' ...
+'      .then(r=>{if(!r.ok)throw new Error("latest_run.geojson not found");return r.json();})\n' ...
+'      .then(g=>{\n' ...
+'        L.geoJSON(g,{onEachFeature:(f,l)=>{\n' ...
+'          const p=f.properties||{};\n' ...
+'          let html=`<strong>${p.name||"Transect"}</strong>`;\n' ...
+'          if(p.image){\n' ...
+'            const im=String(p.image);\n' ...
+'            html += `<br><a href="${im}" target="_blank" rel="noopener"><img class="popupimg" src="${im}"></a>` +\n' ...
+'                    `<div style="margin-top:4px"><a href="${im}" target="_blank" rel="noopener">Open full size</a></div>`;\n' ...
+'          }\n' ...
+'          l.bindPopup(html,{maxWidth:560});\n' ...
+'        }}).addTo(map);\n' ...
+'      })\n' ...
+'      .catch(e=>{L.marker([39.1582,-75.5244]).addTo(map).bindPopup("Could not load latest_run.geojson: "+e.message);});\n' ...
+'  </script>\n' ...
+'</body>\n</html>\n'];
+        fid = fopen(fullfile(outDir_,'map_embed.html'),'w'); fprintf(fid, html); fclose(fid);
     end
-
 end

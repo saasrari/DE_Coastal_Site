@@ -1,8 +1,47 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Interactive Map</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <style>html,body{height:100
+  <style>
+    html,body{height:100%;margin:0;padding:0}
+    #map{height:100vh}
+    .leaflet-popup-content{max-width:560px !important}
+    .popupimg{max-width:520px;width:100%;display:block;margin-top:6px;border-radius:6px}
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([38.9,-75.2], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {maxZoom:19, attribution:'&copy; OpenStreetMap'}).addTo(map);
+
+    fetch('assets/geo/latest_run.geojson')
+      .then(r => { if(!r.ok) throw new Error('latest_run.geojson not found'); return r.json(); })
+      .then(g => {
+        L.geoJSON(g, {
+          onEachFeature: (f, l) => {
+            const p = f.properties || {};
+            let html = `<strong>${p.name || 'Transect'}</strong>`;
+            if (p.image) {
+              const im = String(p.image);
+              html += `<br><a href="${im}" target="_blank" rel="noopener">
+                        <img class="popupimg" src="${im}"></a>
+                       <div style="margin-top:4px">
+                        <a href="${im}" target="_blank" rel="noopener">Open full size</a></div>`;
+            }
+            l.bindPopup(html, {maxWidth:560});
+          }
+        }).addTo(map);
+      })
+      .catch(e => {
+        L.marker([39.1582,-75.5244]).addTo(map)
+         .bindPopup('Could not load GeoJSON: ' + e.message);
+      });
+  </script>
+</body>
+</html>

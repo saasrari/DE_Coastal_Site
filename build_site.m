@@ -186,7 +186,7 @@ fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
 
     function writeLeafletMap(outDir_, assets_)
         % Writes docs/map_embed.html
-        % Uses LOCAL Leaflet (no CDN). If GeoJSON isn't found, shows a fallback marker.
+       
 
         geoDir = fullfile(outDir_, 'assets', 'geo');
         if ~exist(geoDir, 'dir'), mkdir(geoDir); end
@@ -194,11 +194,11 @@ fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
         lines = {
 '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
 '<title>Interactive Map</title>'
-'<link rel="stylesheet" href="assets/leaflet/leaflet.css">'
+'<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">'
 '<style>html,body{margin:0;padding:0;height:100%}#map{height:100vh;margin:0}.leaflet-popup-content{max-width:560px !important}.popupimg{max-width:520px;width:100%;display:block;margin-top:6px;border-radius:6px}</style>'
 '</head><body>'
 '<div id="map"></div>'
-'<script src="assets/leaflet/leaflet.js"></script>'
+'<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>'
 '<script>'
 'var map=L.map("map").setView([38.9,-75.2],8);'
 'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);'

@@ -186,8 +186,8 @@ fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
     end
 
 function writeLeafletMap(outDir_, assets_)
-    % Writes docs/map_embed.html (the actual Leaflet map)
-    % The page loads latest_run.geojson and shows a larger, clickable image in popups.
+    % Writes docs/map_embed.html
+    % Uses LOCAL Leaflet (no CDN). If GeoJSON isn't found, shows a fallback marker.
 
     geoDir = fullfile(outDir_, 'assets', 'geo');
     if ~exist(geoDir, 'dir'), mkdir(geoDir); end
@@ -195,15 +195,18 @@ function writeLeafletMap(outDir_, assets_)
     lines = {
 '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
 '<title>Interactive Map</title>'
-'<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">'
+'<link rel="stylesheet" href="assets/leaflet/leaflet.css">'
 '<style>html,body{margin:0;padding:0;height:100%}#map{height:100vh;margin:0}.leaflet-popup-content{max-width:560px !important}.popupimg{max-width:520px;width:100%;display:block;margin-top:6px;border-radius:6px}</style>'
 '</head><body>'
 '<div id="map"></div>'
-'<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>'
+'<script src="assets/leaflet/leaflet.js"></script>'
 '<script>'
 'var map=L.map("map").setView([38.9,-75.2],8);'
 'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);'
-'fetch("assets/geo/latest_run.geojson").then(function(r){if(!r.ok)throw new Error("latest_run.geojson not found");return r.json();}).then(function(g){'
+'fetch("assets/geo/latest_run.geojson").then(function(r){'
+'  if(!r.ok) throw new Error("latest_run.geojson not found");'
+'  return r.json();'
+'}).then(function(g){'
 '  L.geoJSON(g,{onEachFeature:function(f,l){'
 '    var p=f.properties||{};'
 '    var html="<strong>"+(p.name||"Transect")+"</strong>";'
@@ -214,7 +217,11 @@ function writeLeafletMap(outDir_, assets_)
 '    }'
 '    l.bindPopup(html,{maxWidth:560});'
 '  }}).addTo(map);'
-'}).catch(function(e){console.log(e);});'
+'}).catch(function(e){'
+'  // Fallback marker so the map never looks blank'
+'  var m=L.marker([39.1582,-75.5244]).addTo(map);'
+'  m.bindPopup("No GeoJSON yet: "+e.message);'
+'});'
 '</script></body></html>'
     };
 
@@ -222,6 +229,5 @@ function writeLeafletMap(outDir_, assets_)
     fwrite(fid, strjoin(lines,''));
     fclose(fid);
 end
+end 
 
-
-end

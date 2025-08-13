@@ -58,8 +58,8 @@ content.sites = htmlList({ ...
   mklink('site_delaware.html','Delaware Coast') ...
 });
 content.map = [ ...
-  '<p>Interactive map with example markers (edit in <code>writeLeafletMap</code>).</p>' ...
-  iframe('map.html') ...
+  '<p>Interactive map with example markers.</p>' ...
+  iframe('map_embed.html') ...
 ];
 content.demo        = '<p>Add demo pages for each site with images, GIFs, or short videos.</p>';
 content.animation   = '<p>Link to or embed model result animations (GIF/MP4).</p>';
@@ -184,9 +184,7 @@ fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
     end
 
  function writeLeafletMap(outDir_, assets_)
-    % Map reads docs/assets/geo/latest_run.geojson and shows popups with images.
-    % Popup is wider; clicking the image opens it full-size in a new tab.
-
+    % Writes docs/map_embed.html and reads docs/assets/geo/latest_run.geojson
     geoDir = fullfile(outDir_, 'assets', 'geo');
     if ~exist(geoDir, 'dir'), mkdir(geoDir); end
 
@@ -217,7 +215,7 @@ fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
     };
 
     html = strjoin(lines,'');
-    fid = fopen(fullfile(outDir_,'map.html'),'w'); fwrite(fid, html); fclose(fid);
+    fid = fopen(fullfile(outDir_,'map_embed.html'),'w'); fwrite(fid, html); fclose(fid);
 end
 
 

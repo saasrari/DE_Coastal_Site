@@ -58,9 +58,11 @@ content.sites = htmlList({ ...
   mklink('site_delaware.html','Delaware Coast') ...
 });
 content.map = [ ...
-  '<p>Interactive map with example markers.</p>' ...
-  iframe('map_embed.html') ...
+  '<p>Interactive map of the latest run.</p>' ...
+  iframe('map_embed.html?v=1') ...   % cache-buster
 ];
+
+
 content.demo        = '<p>Add demo pages for each site with images, GIFs, or short videos.</p>';
 content.animation   = '<p>Link to or embed model result animations (GIF/MP4).</p>';
 content.team        = '<ul><li>Your Name — PI</li><li>Colleague — Modeling</li></ul>';
@@ -184,7 +186,10 @@ fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
     end
 
  function writeLeafletMap(outDir_, assets_)
-    % Writes docs/map_embed.html and reads docs/assets/geo/latest_run.geojson
+    % Writes docs/map_embed.html
+    % Loads docs/assets/geo/latest_run.geojson and shows clickable images in popups.
+    % Shows a status banner so you can see if data loaded.
+
     geoDir = fullfile(outDir_, 'assets', 'geo');
     if ~exist(geoDir, 'dir'), mkdir(geoDir); end
 
@@ -192,26 +197,44 @@ fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
 '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
 '<title>Interactive Map</title>'
 '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">'
-'<style>#map{height:100vh;margin:0}.leaflet-popup-content{max-width:560px !important}.popupimg{max-width:520px;width:100%;display:block;margin-top:6px;border-radius:6px;cursor:pointer}</style>'
+'<style>'
+'  html,body{margin:0;padding:0;height:100%}'
+'  #map{height:100vh;margin:0}'
+'  .leaflet-popup-content{max-width:560px !important}'
+'  .popupimg{max-width:520px;width:100%;display:block;margin-top:6px;border-radius:6px;cursor:pointer}'
+'  #status{position:fixed;top:8px;left:8px;background:#111;color:#fff;padding:6px 10px;border-radius:6px;opacity:.9;font:13px/1.2 system-ui,Segoe UI,Arial}'
+'</style>'
 '</head><body>'
 '<div id="map"></div>'
+'<div id="status">Loading basemap…</div>'
 '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>'
 '<script>'
-'var map=L.map("map").setView([38.9,-75.2],8);'
-'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(map);'
-'fetch("assets/geo/latest_run.geojson").then(function(r){if(!r.ok)throw new Error("no geojson");return r.json();}).then(function(g){'
-'  L.geoJSON(g,{onEachFeature:function(f,l){'
-'    var p=f.properties||{};'
-'    var html="<strong>"+(p.name||"Transect")+"</strong>";'
-'    if(p.image){'
-'      var im=String(p.image);'
-'      html+="<br><a href=\\"" + im + "\\" target=\\"_blank\\" rel=\\"noopener\\"><img class=\\"popupimg\\" src=\\"" + im + "\\"></a>";'
-'      html+="<div style=\\"margin-top:4px\\"><a href=\\"" + im + "\\" target=\\"_blank\\" rel=\\"noopener\\">Open full size</a></div>";'
-'    }'
-'    l.bindPopup(html,{maxWidth:560});'
-'  }}).addTo(map);'
-'}).catch(function(e){console.warn("No latest_run.geojson yet:", e);});'
-'</script></body></html>'
+'  var map=L.map("map").setView([38.9,-75.2],8);'
+'  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);'
+'  var statusEl=document.getElementById("status");'
+'  statusEl.textContent="Loading markers…";'
+'  fetch("assets/geo/latest_run.geojson").then(function(r){'
+'    if(!r.ok) throw new Error("latest_run.geojson not found");'
+'    return r.json();'
+'  }).then(function(g){'
+'    statusEl.textContent="Rendering features…";'
+'    L.geoJSON(g,{onEachFeature:function(f,l){'
+'      var p=f.properties||{};'
+'      var html="<strong>"+(p.name||"Transect")+"</strong>";'
+'      if(p.image){'
+'        var im=String(p.image);'
+'        html+="<br><a href=\\"" + im + "\\" target=\\"_blank\\" rel=\\"noopener\\"><img class=\\"popupimg\\" src=\\"" + im + "\\"></a>";'
+'        html+="<div style=\\"margin-top:4px\\"><a href=\\"" + im + "\\" target=\\"_blank\\" rel=\\"noopener\\">Open full size</a></div>";'
+'      }'
+'      l.bindPopup(html,{maxWidth:560});'
+'    }}).addTo(map);'
+'    statusEl.textContent="Done.";'
+'    setTimeout(function(){statusEl.style.display="none";},1500);'
+'  }).catch(function(e){'
+'    statusEl.textContent="No GeoJSON yet: " + e.message;'
+'  });'
+'</script>'
+'</body></html>'
     };
 
     html = strjoin(lines,'');

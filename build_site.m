@@ -185,10 +185,9 @@ fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
              '<iframe src="', src, '" style="width:100%;height:100%;border:0"></iframe></div>'];
     end
 
- function writeLeafletMap(outDir_, assets_)
-    % Writes docs/map_embed.html
-    % Robust loader: tries Leaflet from cdnjs, falls back to unpkg.
-    % Shows status messages so you can see where it stops.
+function writeLeafletMap(outDir_, assets_)
+    % Writes docs/map_embed.html (the actual Leaflet map)
+    % The page loads latest_run.geojson and shows a larger, clickable image in popups.
 
     geoDir = fullfile(outDir_, 'assets', 'geo');
     if ~exist(geoDir, 'dir'), mkdir(geoDir); end
@@ -196,71 +195,33 @@ fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
     lines = {
 '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
 '<title>Interactive Map</title>'
-'<!-- Try both CSS CDNs (duplicates are harmless) -->'
-'<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">'
 '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">'
-'<style>'
-'  html,body{margin:0;padding:0;height:100%}'
-'  #map{height:100vh;margin:0}'
-'  .leaflet-popup-content{max-width:560px !important}'
-'  .popupimg{max-width:520px;width:100%;display:block;margin-top:6px;border-radius:6px;cursor:pointer}'
-'  #status{position:fixed;top:8px;left:8px;background:#111;color:#fff;padding:6px 10px;border-radius:6px;opacity:.9;font:13px/1.2 system-ui,Segoe UI,Arial;z-index:1000}'
-'</style>'
+'<style>html,body{margin:0;padding:0;height:100%}#map{height:100vh;margin:0}.leaflet-popup-content{max-width:560px !important}.popupimg{max-width:520px;width:100%;display:block;margin-top:6px;border-radius:6px}</style>'
 '</head><body>'
 '<div id="map"></div>'
-'<div id="status">Loading library…</div>'
+'<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>'
 '<script>'
-'(function(){'
-'  var statusEl=document.getElementById("status");'
-'  function setStatus(s){ try{ statusEl.textContent=s; }catch(e){} }'
-'  function start(){'
-'    try{'
-'      setStatus("Initializing map…");'
-'      var map=L.map("map").setView([38.9,-75.2],8);'
-'      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);'
-'      setStatus("Loading markers…");'
-'      fetch("assets/geo/latest_run.geojson").then(function(r){'
-'        if(!r.ok) throw new Error("latest_run.geojson not found");'
-'        return r.json();'
-'      }).then(function(g){'
-'        setStatus("Rendering features…");'
-'        L.geoJSON(g,{onEachFeature:function(f,l){'
-'          var p=f.properties||{};'
-'          var html="<strong>"+(p.name||"Transect")+"</strong>";'
-'          if(p.image){'
-'            var im=String(p.image);'
-'            html+="<br><a href=\\"" + im + "\\" target=\\"_blank\\" rel=\\"noopener\\"><img class=\\"popupimg\\" src=\\"" + im + "\\"></a>";'
-'            html+="<div style=\\"margin-top:4px\\"><a href=\\"" + im + "\\" target=\\"_blank\\" rel=\\"noopener\\">Open full size</a></div>";'
-'          }'
-'          l.bindPopup(html,{maxWidth:560});'
-'        }}).addTo(map);'
-'        setStatus("Done."); setTimeout(function(){statusEl.style.display="none";},1500);'
-'      }).catch(function(e){ setStatus("No GeoJSON yet: " + e.message); });'
-'    }catch(e){ setStatus("Init error: " + e.message); }'
-'  }'
-'  function loadScript(src, onload, onerror){'
-'    var s=document.createElement("script"); s.src=src; s.onload=onload; s.onerror=onerror; document.head.appendChild(s);'
-'  }'
-'  // Try cdnjs, then fall back to unpkg if blocked'
-'  loadScript("https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js", start, function(){'
-'    setStatus("CDNJS blocked; trying unpkg…");'
-'    loadScript("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js", start, function(){'
-'      setStatus("Failed to load Leaflet library.");'
-'    });'
-'  });'
-'  // Surface any unexpected JS errors in the status pill'
-'  window.addEventListener("error", function(e){ setStatus("JS error: " + (e.message||"unknown")); });'
-'  window.addEventListener("unhandledrejection", function(e){ setStatus("Promise error: " + (e.reason&&e.reason.message?e.reason.message:e.reason)); });'
-'})();'
-'</script>'
-'</body></html>'
+'var map=L.map("map").setView([38.9,-75.2],8);'
+'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);'
+'fetch("assets/geo/latest_run.geojson").then(function(r){if(!r.ok)throw new Error("latest_run.geojson not found");return r.json();}).then(function(g){'
+'  L.geoJSON(g,{onEachFeature:function(f,l){'
+'    var p=f.properties||{};'
+'    var html="<strong>"+(p.name||"Transect")+"</strong>";'
+'    if(p.image){'
+'      var im=String(p.image);'
+'      html+="<br><a href=\\"" + im + "\\" target=\\"_blank\\" rel=\\"noopener\\"><img class=\\"popupimg\\" src=\\"" + im + "\\"></a>";'
+'      html+="<div style=\\"margin-top:4px\\"><a href=\\"" + im + "\\" target=\\"_blank\\" rel=\\"noopener\\">Open full size</a></div>";'
+'    }'
+'    l.bindPopup(html,{maxWidth:560});'
+'  }}).addTo(map);'
+'}).catch(function(e){console.log(e);});'
+'</script></body></html>'
     };
 
     fid = fopen(fullfile(outDir_,'map_embed.html'),'w');
     fwrite(fid, strjoin(lines,''));
     fclose(fid);
 end
-
 
 
 end

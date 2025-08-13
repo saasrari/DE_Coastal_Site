@@ -62,7 +62,6 @@ content.map = [ ...
   iframe('map_embed.html?v=1') ...   % cache-buster
 ];
 
-
 content.demo        = '<p>Add demo pages for each site with images, GIFs, or short videos.</p>';
 content.animation   = '<p>Link to or embed model result animations (GIF/MP4).</p>';
 content.team        = '<ul><li>Your Name — PI</li><li>Colleague — Modeling</li></ul>';
@@ -181,18 +180,18 @@ fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
     end
 
     function s = iframe(src)
-        s = ['<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;height:520px">' ...
+        s = ['<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;height:600px">' ...
              '<iframe src="', src, '" style="width:100%;height:100%;border:0"></iframe></div>'];
     end
 
-function writeLeafletMap(outDir_, assets_)
-    % Writes docs/map_embed.html
-    % Uses LOCAL Leaflet (no CDN). If GeoJSON isn't found, shows a fallback marker.
+    function writeLeafletMap(outDir_, assets_)
+        % Writes docs/map_embed.html
+        % Uses LOCAL Leaflet (no CDN). If GeoJSON isn't found, shows a fallback marker.
 
-    geoDir = fullfile(outDir_, 'assets', 'geo');
-    if ~exist(geoDir, 'dir'), mkdir(geoDir); end
+        geoDir = fullfile(outDir_, 'assets', 'geo');
+        if ~exist(geoDir, 'dir'), mkdir(geoDir); end
 
-    lines = {
+        lines = {
 '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
 '<title>Interactive Map</title>'
 '<link rel="stylesheet" href="assets/leaflet/leaflet.css">'
@@ -218,16 +217,15 @@ function writeLeafletMap(outDir_, assets_)
 '    l.bindPopup(html,{maxWidth:560});'
 '  }}).addTo(map);'
 '}).catch(function(e){'
-'  // Fallback marker so the map never looks blank'
 '  var m=L.marker([39.1582,-75.5244]).addTo(map);'
 '  m.bindPopup("No GeoJSON yet: "+e.message);'
 '});'
 '</script></body></html>'
-    };
+        };
 
-    fid = fopen(fullfile(outDir_,'map_embed.html'),'w');
-    fwrite(fid, strjoin(lines,''));
-    fclose(fid);
+        fid = fopen(fullfile(outDir_,'map_embed.html'),'w');
+        fwrite(fid, strjoin(lines,''));
+        fclose(fid);
+    end
+
 end
-end 
-

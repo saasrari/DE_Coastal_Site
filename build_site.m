@@ -183,26 +183,43 @@ fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
              '<iframe src="', src, '" style="width:100%;height:100%;border:0"></iframe></div>'];
     end
 
-    function writeLeafletMap(outDir_, assets_)
-        % Map reads docs/assets/geo/latest_run.geojson and shows popups with images
-        geoDir = fullfile(outDir_, 'assets', 'geo');
-        if ~exist(geoDir, 'dir'), mkdir(geoDir); end
+ function writeLeafletMap(outDir_, assets_)
+    % Map reads docs/assets/geo/latest_run.geojson and shows popups with images.
+    % Popup is wider; clicking the image opens it full-size in a new tab.
 
-        html = ['<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' ...
-        '<title>Interactive Map</title>' ...
-        '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">' ...
-        '<style>#map{height:100vh;margin:0} .popupimg{max-width:260px;display:block;margin-top:6px;border-radius:6px}</style>' ...
-        '</head><body>' ...
-        '<div id="map"></div>' ...
-        '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>' ...
-        '<script>' ...
-        'var map=L.map("map").setView([38.9,-75.2],8);' ...
-        'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(map);' ...
-        'fetch("assets/geo/latest_run.geojson").then(r=>{if(!r.ok)throw new Error("no geojson");return r.json();}).then(g=>{' ...
-        '  L.geoJSON(g,{onEachFeature:function(f,l){var p=f.properties||{};var html="<strong>"+(p.name||"Transect")+"</strong>";if(p.image){html+=`<br><img class="popupimg" src="${p.image}">`}l.bindPopup(html);}}).addTo(map);' ...
-        '}).catch(e=>{console.warn("No latest_run.geojson yet:", e);});' ...
-        '</script></body></html>'];
+    geoDir = fullfile(outDir_, 'assets', 'geo');
+    if ~exist(geoDir, 'dir'), mkdir(geoDir); end
 
-        fid = fopen(fullfile(outDir_,'map.html'),'w'); fwrite(fid, html); fclose(fid);
-    end
+    lines = {
+'<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+'<title>Interactive Map</title>'
+'<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">'
+'<style>#map{height:100vh;margin:0}.leaflet-popup-content{max-width:560px !important}.popupimg{max-width:520px;width:100%;display:block;margin-top:6px;border-radius:6px;cursor:pointer}</style>'
+'</head><body>'
+'<div id="map"></div>'
+'<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>'
+'<script>'
+'var map=L.map("map").setView([38.9,-75.2],8);'
+'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(map);'
+'fetch("assets/geo/latest_run.geojson").then(function(r){if(!r.ok)throw new Error("no geojson");return r.json();}).then(function(g){'
+'  L.geoJSON(g,{onEachFeature:function(f,l){'
+'    var p=f.properties||{};'
+'    var html="<strong>"+(p.name||"Transect")+"</strong>";'
+'    if(p.image){'
+'      var im=String(p.image);'
+'      html+="<br><a href=\\"" + im + "\\" target=\\"_blank\\" rel=\\"noopener\\"><img class=\\"popupimg\\" src=\\"" + im + "\\"></a>";'
+'      html+="<div style=\\"margin-top:4px\\"><a href=\\"" + im + "\\" target=\\"_blank\\" rel=\\"noopener\\">Open full size</a></div>";'
+'    }'
+'    l.bindPopup(html,{maxWidth:560});'
+'  }}).addTo(map);'
+'}).catch(function(e){console.warn("No latest_run.geojson yet:", e);});'
+'</script></body></html>'
+    };
+
+    html = strjoin(lines,'');
+    fid = fopen(fullfile(outDir_,'map.html'),'w'); fwrite(fid, html); fclose(fid);
+end
+
+
+
 end

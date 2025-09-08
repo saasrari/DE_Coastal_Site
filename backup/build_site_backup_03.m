@@ -1,0 +1,295 @@
+function build_site()
+% Build a simple docs website (HTML files) using only MATLAB.
+% Writes into ./docs
+
+clc; close all;
+outDir  = fullfile(pwd,'docs');
+assets  = fullfile(outDir,'assets');
+if ~exist(outDir,'dir'),  mkdir(outDir);  end
+if ~exist(assets,'dir'),  mkdir(assets);  end
+
+%% --- Prune obsolete pages from previous builds ---
+% Also remove the former XBEACH page if it exists.
+obsolete = ["demo","animation","team","publication","media","guide","how","map","models_xbeach"];
+for k = 1:numel(obsolete)
+    f = fullfile(outDir, obsolete(k) + ".html");
+    if exist(f,'file'), delete(f); end
+end
+
+% ---------- Site settings ----------
+site.title      = 'Coastal Hazard Modeling';
+site.org        = 'Your Research Group';
+site.themeColor = '#0a2540';
+
+% Order controls both the top nav and the sidebar.
+site.pages = { ...
+  'index','Home'; ...
+  'delaware_map','Delaware Interactive Map'; ...
+  'duck_map','Duck Interactive Map'; ...
+  'objective','ABOUT'; ...
+  'models','BASIC MODEL INFORMATION'; ...
+  'sites','SITES'; ...
+};
+
+% ---------- Logo ----------
+site.logo = 'logo.jpg';
+if ~exist(fullfile(assets, site.logo),'file')
+    % Not fatal; just warn so you remember to add one later.
+    warning('Logo file not found: assets/%s', site.logo);
+end
+
+% ---------- Shared CSS ----------
+cssPath = fullfile(assets,'style.css');
+writeCSS(cssPath, site.themeColor);
+
+% ---------- Content ----------
+% HOME: lead text + two clickable image tiles (Delaware, Duck)
+homeLead = [ ...
+  '<p><strong>Near-real-time forecasts of water levels and beach-profile change.</strong></p>' ...
+  '<p>Delaware is live and updates every 4 hours using the latest buoy waves and NOAA water levels. Duck, NC is coming soon. Choose a map below to explore profiles and images.</p>' ...
+];
+
+cardDelaware = card('delaware_map.html', 'Delaware Interactive Map', ...
+                    'assets/delaware.jpg', 'Live map of the latest Delaware run.');
+cardDuck     = card('duck_map.html', 'Duck Interactive Map', ...
+                    'assets/duck.jpg', 'Coming soon...');
+
+content.index = [ ...
+  '<section class="lead">', homeLead, '</section>', ...
+  '<div class="feature-grid">', cardDelaware, cardDuck, '</div>' ...
+];
+
+% ABOUT page
+% ABOUT page (concise; no model name mentioned)
+content.objective = strjoin({ ...
+  '<img src="assets/about.jpg" class="align-right" alt="Coastal modeling montage">' ...
+  '<p><strong>Purpose.</strong> This site delivers near-real-time predictions of total water levels and beach/dune profile change for representative Atlantic-coast sites. The initial focus is the Delaware coast (live), with Duck, North Carolina planned next. The goal is a transparent, repeatable workflow that supports research and situational awareness.</p>' ...
+  '<p><strong>Approach.</strong> We run 1D transects and refresh forcing every 4 hours using public data services—wave height, period, and mean direction from NDBC Buoy 44084, and water level from NOAA CO-OPS Station 8557380 (Lewes, NAVD). For each cycle, 39 cross-shore profiles are simulated and compared to their initial surveyed lines.</p>' ...
+  '<p><strong>Outputs.</strong> Each transect produces an image showing the modeled final profile versus the initial profile, together with run metadata (Hm0, Tp, wave direction, and mean water level). Images are published to the interactive map as clickable markers, and a GeoJSON file (<code>latest_run.geojson</code>) is updated so the site always shows the latest cycle.</p>' ...
+  '<p><strong>Limitations.</strong> These results are research products and depend on upstream data and the current configuration. Profiles that fail to compute are skipped in that cycle. This is not an official forecast.</p>' ...
+}, '');
+
+% BASIC MODEL INFORMATION hub (no XBEACH link)
+content.models = htmlList({ ...
+  mklink('models_overview.html','Overview of Technology/Methodology') ...
+});
+
+% SITES page
+content.sites = htmlList({ mklink('site_delaware.html','Delaware Coast') });
+
+% Delaware Interactive Map page (embeds map_embed.html written by writeLeafletMap)
+content.delaware_map = [ ...
+  '<p>Interactive map of the latest Delaware run.</p>', ...
+  iframe('map_embed.html?v=3') ...
+];
+
+% Duck placeholder page
+content.duck_map = [ ...
+  '<p><em>Duck, North Carolina interactive map is coming soon.</em></p>' ...
+];
+
+% ---------- Write main pages ----------
+for i = 1:size(site.pages,1)
+    slug  = site.pages{i,1};
+    title = site.pages{i,2};
+    body  = content.(slug);
+    writePage(outDir, assets, site, slug, title, body, site.pages);
+end
+
+%% ---------- Subpages ----------
+% OVERVIEW (Technology / Methodology)
+overviewHtml = strjoin({ ...
+  '<div class="note"><strong>Pipeline:</strong> Every 4 hours we fetch the latest waves and water level, build inputs, run 39 transects, generate profile images, and publish to the web map.</div>' ...
+  '<h2>Data flow</h2>' ...
+  '<table class="simple"><thead><tr><th>Source</th><th>What we use</th><th>Where it goes</th></tr></thead><tbody>' ...
+  '<tr><td>NDBC 44084</td><td>Hm0, Tp, mean direction</td><td><code>waves.txt</code> (spectral params + main direction)</td></tr>' ...
+  '<tr><td>NOAA CO-OPS 8557380 (Lewes, NAVD)</td><td>Recent water level</td><td><code>tide.txt</code> (1 hr, 6-min step)</td></tr>' ...
+  '<tr><td>Profiles-lines_NEDE.xlsx</td><td>Initial x–z per transect</td><td>Used for plotting “Initial Profile”</td></tr>' ...
+  '<tr><td>profiles.csv</td><td>Lat/Lon + image filename</td><td>Builds <code>latest_run.geojson</code> for the map</td></tr>' ...
+  '</tbody></table>' ...
+  '<h2>Run cycle</h2>' ...
+  '<ol>' ...
+    '<li>Download buoy + water level; log to <code>wave_data.txt</code>.</li>' ...
+    '<li>Write <code>waves.txt</code> and <code>tide.txt</code> into each <code>profile_k</code> folder.</li>' ...
+    '<li>Run all transects; each folder writes a model output file.</li>' ...
+    '<li>Read output, overlay the initial profile, and save <code>profile_%02d.jpg</code>.</li>' ...
+    '<li>Copy images to <code>docs/assets/runs/&lt;RUN_ID&gt;/</code> and write <code>assets/geo/latest_run.geojson</code>.</li>' ...
+    '<li>If the repo is detected, auto-commit/push to GitHub Pages.</li>' ...
+  '</ol>' ...
+  '<h2>Repository layout</h2>' ...
+  '<table class="simple"><tbody>' ...
+  '<tr><td><code>C:\exp1\profile_k\</code></td><td>Transect folders (inputs, model output, plots)</td></tr>' ...
+  '<tr><td><code>C:\exp1\built_site_in\docs\</code></td><td>Static site (served by GitHub Pages)</td></tr>' ...
+  '<tr><td><code>docs/assets/runs/&lt;RUN_ID&gt;/</code></td><td>Images from the latest cycle</td></tr>' ...
+  '<tr><td><code>docs/assets/geo/latest_run.geojson</code></td><td>Markers consumed by the Leaflet map</td></tr>' ...
+  '</tbody></table>' ...
+}, '');
+writePage(outDir, assets, site, 'models_overview', ...
+    'Overview of Technology/Methodology', overviewHtml, site.pages);
+
+% Site subpage (keep simple placeholder)
+writePage(outDir, assets, site, 'site_delaware', ...
+    'Delaware Coast', '<p>Describe locations, transects, and data sources.</p>', site.pages);
+
+% ---------- Map page (Delaware) ----------
+writeLeafletMap(outDir, assets);  % writes docs/map_embed.html
+
+fprintf('\nDone! Open: %s\n', fullfile(outDir,'index.html'));
+
+%% ===== helpers =====
+    function writePage(outDir_, assets_, site_, slug, title, body, pages)
+        html = sprintf(['<!DOCTYPE html><html lang="en"><head>' ...
+          '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' ...
+          '<title>%s — %s</title>' ...
+          '<link rel="icon" href="assets/%s">' ...
+          '<link rel="stylesheet" href="assets/style.css">' ...
+          '</head><body class="%s">' ...
+          '<header class="site-header"><a class="brand" href="index.html">' ...
+          '<img src="assets/%s" alt="Logo"><span>%s</span></a></header>' ...
+          '<nav class="top-nav">%s</nav>' ...
+          '<main class="container"><aside class="sidebar">%s</aside>' ...
+          '<article class="content"><h1>%s</h1>%s</article></main>' ...
+          '<footer class="site-footer">&copy; %d %s</footer>' ...
+          '</body></html>'], ...
+          title, site_.title, site_.logo, slug, site_.logo, site_.title, ...
+          topNav(pages, slug), sideNav(pages, slug), ...
+          title, body, year(datetime('now')), site_.org);
+        fid = fopen(fullfile(outDir_, [slug '.html']),'w'); fwrite(fid, html); fclose(fid);
+    end
+
+    function writeSimplePage(outDir_, assets_, site_, slug, title, paragraph, pages)
+        writePage(outDir_, assets_, site_, slug, title, paragraph, pages);
+    end
+
+    function s = topNav(pages, active)
+        items = cell(1,size(pages,1));
+        for ii = 1:size(pages,1)
+            slug  = pages{ii,1}; label = pages{ii,2};
+            if strcmp(slug, active), cls = ' class="active"'; else, cls = ''; end
+            items{ii} = sprintf('<a%s href="%s.html">%s</a>', cls, slug, label);
+        end
+        s = strjoin(items,'');
+    end
+
+    function s = sideNav(pages, active)
+        items = cell(1,size(pages,1));
+        for ii = 1:size(pages,1)
+            slug  = pages{ii,1}; label = pages{ii,2};
+            if strcmp(slug, active), cls = ' class="active"'; else, cls = ''; end
+            items{ii} = sprintf('<div><a%s href="%s.html">%s</a></div>', cls, slug, label);
+        end
+        s = strjoin(items,'');
+    end
+
+    function writeCSS(path, themeColor)
+        first = sprintf(':root{--brand %s;--bg:#ffffff;--text:#1f2937;--muted:#6b7280;}', themeColor);
+        rules = { ...
+            first
+            'html,body{height:100%}'
+            'body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}'
+            '.site-header{display:flex;align-items:center;gap:.6rem;padding:.8rem 1rem;border-bottom:1px solid #e5e7eb}'
+            '.brand{display:flex;align-items:center;gap:.6rem;color:var(--text);text-decoration:none;font-weight:600}'
+            '.brand img{height:28px}'
+            '.top-nav{display:flex;gap:.8rem;flex-wrap:wrap;padding:.5rem 1rem;border-bottom:1px solid #e5e7eb}'
+            '.top-nav a{padding:.4rem .6rem;border-radius:.5rem;text-decoration:none;color:var(--text)}'
+            '.top-nav a.active,.top-nav a:hover{background:var(--brand);color:#fff}'
+            '.container{display:grid;grid-template-columns:280px 1fr;gap:1rem;align-items:start;padding:1rem;max-width:1800px;margin:0 auto;min-height:calc(100vh - 140px)}'
+            '.sidebar{position:sticky;top:10px;border:1px solid #e5e7eb;padding:1rem;border-radius:.75rem}'
+            '.sidebar a{display:block;color:var(--text);text-decoration:none;margin:.2rem 0}'
+            '.sidebar a.active{font-weight:600}'
+            '.content{padding:1.2rem 1.4rem;border:1px solid #e5e7eb;border-radius:.75rem;background:#fff}'
+            '.content h1{margin-top:.2rem}'
+            '.site-footer{padding:1rem;text-align:center;color:var(--muted);border-top:1px solid #e5e7eb;margin-top:2rem}'
+            '.lead p{font-size:1.05rem}'
+            '.index .container{grid-template-columns:1fr;max-width:2000px}'
+            '.index .sidebar{display:none}'
+            '.index .content{padding:1rem 0;border:none;background:transparent}'
+            '.feature-grid{display:grid;grid-template-columns:repeat(2,minmax(420px,1fr));gap:1.25rem;margin-top:1rem}'
+            '.feature-card{display:block;border:1px solid #e5e7eb;border-radius:.75rem;overflow:hidden;text-decoration:none;color:var(--text);background:#fff}'
+            '.feature-card img{width:100%;height:65vh;max-height:980px;object-fit:contain;display:block;background:#f8fafc}'
+            '.feature-card h3{margin:.8rem 1rem .2rem;font-size:1.05rem}'
+            '.feature-card p{margin:0 1rem 1rem;color:var(--muted)}'
+            '.feature-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.06)}'
+            '.align-right{float:right;margin:0 0 1rem 1rem;max-width:42%;height:auto;border-radius:.5rem;border:1px solid #e5e7eb}'
+            'table.simple{border-collapse:collapse;width:100%;margin:.75rem 0}'
+            'table.simple th,table.simple td{border:1px solid #e5e7eb;padding:.5rem;text-align:left}'
+            'code,pre{font-family:ui-monospace,Consolas,Monaco,monospace;background:#f8fafc;border:1px solid #e5e7eb;border-radius:.25rem}'
+            'code{padding:.05rem .25rem}'
+            'pre{padding:.6rem;overflow:auto}'
+            '.note{background:#f8fafc;border:1px solid #e5e7eb;border-radius:.5rem;padding:.75rem;margin:1rem 0}'
+            '@media (max-width:1100px){.feature-grid{grid-template-columns:1fr}.feature-card img{height:50vh}}'
+        };
+        css = strjoin(rules,'');
+        fid = fopen(path,'w'); fwrite(fid, css); fclose(fid);
+    end
+
+    function s = mklink(href, text_), s = ['<a href="', href, '">', text_, '</a>']; end
+    function s = htmlList(items), s  = ['<ul>', strjoin(cellfun(@(x)['<li>',x,'</li>'],items,'uni',0),''), '</ul>']; end
+    function s = iframe(src)
+        s = ['<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;height:70vh">' ...
+             '<iframe src="', src, '" style="width:100%;height:100%;border:0"></iframe></div>'];
+    end
+    function s = card(href, title, imgSrc, desc)
+        s = ['<a class="feature-card" href="', href, '">', ...
+             '<img src="', imgSrc, '" alt="', title, '">', ...
+             '<h3>', title, '</h3>', ...
+             '<p>', desc, '</p>', ...
+             '</a>'];
+    end
+
+    function writeLeafletMap(outDir_, ~)
+        % Writes docs/map_embed.html (Delaware map)
+        geoDir = fullfile(outDir_, 'assets', 'geo');
+        if ~exist(geoDir, 'dir'), mkdir(geoDir); end
+        lines = {
+'<!doctype html><html><head><meta charset="utf-8" />'
+'<meta name="viewport" content="width=device-width, initial-scale=1">'
+'<title>Delaware Interactive Map</title>'
+'<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">'
+'<style>'
+'  html,body{height:100%;margin:0;padding:0}'
+'  #map{height:100vh}'
+'  .leaflet-popup-content{max-width:560px !important}'
+'  .popupimg{max-width:520px;width:100%;display:block;margin-top:6px;border-radius:6px}'
+'  .numMarker{width:22px;height:22px;background:#155e75;color:#fff;border-radius:50%;border:2px solid #fff;'
+'    box-shadow:0 1px 3px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;'
+'    font:12px/22px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}'
+'</style>'
+'</head><body>'
+'<div id="map"></div>'
+'<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>'
+'<script>'
+'  const map = L.map("map").setView([38.9,-75.2], 8);'
+'  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);'
+'  fetch("assets/geo/latest_run.geojson")'
+'    .then(r => { if(!r.ok) throw new Error("latest_run.geojson not found"); return r.json(); })'
+'    .then(g => {'
+'      let i = 0;'
+'      const layer = L.geoJSON(g, {'
+'        pointToLayer: (f, latlng) => {'
+'          i++;'
+'          const icon = L.divIcon({ className:"numMarker", html:String(i), iconSize:[22,22], iconAnchor:[11,11] });'
+'          return L.marker(latlng, {icon});'
+'        },'
+'        onEachFeature: (f, l) => {'
+'          const p = f.properties || {};'
+'          let html = `<strong>${p.name || "Transect"}</strong>`;'
+'          if (p.image) {'
+'            const im = String(p.image);'
+'            html += `<br><a href="${im}" target="_blank" rel="noopener">`'
+'                 +  `<img class="popupimg" src="${im}"></a>`'
+'                 +  `<div style="margin-top:4px"><a href="${im}" target="_blank" rel="noopener">Open full size</a></div>`;'
+'          }'
+'          l.bindPopup(html, {maxWidth:560});'
+'        }'
+'      }).addTo(map);'
+'      try { map.fitBounds(layer.getBounds(), {padding:[30,30]}); } catch(e) {}'
+'    })'
+'    .catch(e => { L.marker([39.1582,-75.5244]).addTo(map).bindPopup("Could not load GeoJSON: " + e.message); });'
+'</script>'
+'</body></html>'
+        };
+        fid = fopen(fullfile(outDir_,'map_embed.html'),'w');
+        fwrite(fid, strjoin(lines,'')); fclose(fid);
+    end
+end
